@@ -1,0 +1,46 @@
+// ✅ Scouter Agent (Node.js + Express) สำหรับ Deploy บน Vercel
+const express = require("express");
+const app = express();
+
+app.use(express.json());
+
+// 🔹 Health check
+app.get("/", (req, res) => {
+  res.json({ status: "Scouter Agent is running ✅" });
+});
+
+// 🔹 Endpoint หลักของ Agent
+app.post("/scout", async (req, res) => {
+  try {
+    const { jobID, taskID, requestedAction, payload } = req.body;
+
+    if (!jobID || !taskID || !requestedAction) {
+      return res.status(400).json({
+        error: "❌ Missing required fields (jobID, taskID, requestedAction)",
+      });
+    }
+
+    // ✅ [Mock] Logic ของ Scouter Agent
+    // 🔹 ตรงนี้ในอนาคตเราจะเชื่อม Google API หรือ Perplexity API
+    const result = {
+      jobID,
+      taskID,
+      requestedAction,
+      status: "success",
+      message: "Scouter Agent processed the request",
+      researchData: {
+        insightSummary: "นี่คือตัวอย่างข้อมูลสรุปจาก Scouter Agent",
+        keywords: ["lycopene", "antioxidant", "supplement"],
+        sources: ["https://example.com/article1", "https://example.com/article2"],
+      },
+    };
+
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Agent Error:", error);
+    res.status(500).json({ error: "Agent processing failed", details: error.message });
+  }
+});
+
+// ✅ บังคับให้ใช้ port ของ Vercel
+module.exports = app;
