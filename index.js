@@ -1,53 +1,77 @@
+import fetch from "node-fetch"; // ใช้ fetch เพื่อเรียก API ภายนอก
+
 export default async function handler(req, res) {
+  const startTime = Date.now();
+
+  // ✅ รองรับเฉพาะ POST
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed. Use POST." });
+  }
+
   try {
-    // ✅ อนุญาตเฉพาะ POST
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method Not Allowed. Use POST instead." });
+    // ✅ Parse Body (ตรวจสอบว่ามี JSON จริง)
+    const { jobID, taskID, requestedAction, payload } = req.body || {};
+    if (!jobID || !taskID || !requestedAction || !payload?.researchData) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid payload format. Expected jobID, taskID, requestedAction, and payload.researchData",
+      });
     }
 
-    // ✅ ตรวจว่า Content-Type เป็น application/json
-    if (req.headers["content-type"] !== "application/json") {
-      return res.status(400).json({ error: "Invalid Content-Type. Use application/json" });
-    }
+    console.log("✅ Incoming Payload:", JSON.stringify(payload, null, 2));
 
-    // ✅ รองรับทั้งกรณี Vercel parse ให้ และกรณี req.body เป็น string
-    let body = req.body;
-    if (typeof body === "string") {
-      try {
-        body = JSON.parse(body);
-      } catch (err) {
-        return res.status(400).json({ error: "Invalid JSON body" });
-      }
-    }
+    // ✅ ดึง researchData จาก payload
+    const { researchData } = payload;
 
-    const { jobID, taskID, requestedAction, payload } = body;
+    // 🟡 ตัวอย่างการค้นหา (ใน Production จะเชื่อม SerpAPI / Perplexity)
+    const mockInsights = [
+      "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
+      "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
+      "การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์",
+    ];
 
-    // ✅ Validate fields
-    if (!jobID || !taskID || !requestedAction) {
-      return res.status(400).json({ error: "Missing required fields (jobID, taskID, requestedAction)" });
-    }
+    const mockKeywords = ["lycopene supplement", "skin health", "antioxidant"];
+    const mockCompetitors = ["Brand A", "Brand B", "Brand C"];
+    const mockSources = [
+      { title: "Global Supplement Market 2025", url: "https://example.com/report2025" },
+      { title: "Consumer Trends 2025", url: "https://example.com/consumer2025" },
+    ];
 
-    // ✅ ตอบกลับ Mock Data (Scouter Agent)
-    const response = {
+    // ✅ สร้าง priority score (mock)
+    const priorityScores = mockInsights.map((insight, index) => ({
+      insight,
+      score: (10 - index).toFixed(1),
+    }));
+
+    // ✅ Response Object
+    const responsePayload = {
       jobID,
       taskID,
       requestedAction,
+      agentName: "Scouter",
       status: "success",
       timestamp: new Date().toISOString(),
+      responseTimeMs: Date.now() - startTime,
       researchData: {
-        insights: [
-          "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
-          "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
-          "การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์"
-        ],
-        keywords: ["lycopene supplement", "skin health", "antioxidant"],
-        competitorBrands: ["Brand A", "Brand B", "Brand C"]
+        insights: mockInsights,
+        keywords: mockKeywords,
+        competitorBrands: mockCompetitors,
+        sourceLinks: mockSources,
+        priorityScores,
       },
     };
 
-    return res.status(200).json(response);
+    console.log("✅ Scouter Response:", JSON.stringify(responsePayload, null, 2));
+    return res.status(200).json(responsePayload);
+
   } catch (error) {
-    console.error("❌ API Error:", error);
-    return res.status(500).json({ error: "Internal Server Error", details: error.message });
+    console.error("❌ Scouter Agent Error:", error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Scouter Agent Failed",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
   }
 }
