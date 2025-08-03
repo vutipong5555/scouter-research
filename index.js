@@ -4,14 +4,19 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method Not Allowed. Use POST." });
     }
 
-    const body = await req.json().catch(() => null);
-    console.log("📥 Incoming Request:", body);
+    // ✅ อ่าน body แบบ CommonJS
+    let body = "";
+    await new Promise(resolve => {
+      req.on("data", chunk => {
+        body += chunk;
+      });
+      req.on("end", resolve);
+    });
 
-    if (!body) {
-      return res.status(400).json({ error: "Invalid JSON body" });
-    }
+    const data = JSON.parse(body || "{}");
+    console.log("📥 Incoming Request:", data);
 
-    const { jobID, taskID, requestedAction, payload } = body;
+    const { jobID, taskID, requestedAction, payload } = data;
 
     if (!jobID || !taskID || !requestedAction) {
       return res.status(400).json({
