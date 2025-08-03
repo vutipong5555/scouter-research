@@ -1,25 +1,35 @@
 const express = require("express");
 const app = express();
-app.use(express.json()); // ✅ รองรับ JSON Body
+const PORT = process.env.PORT || 3000;
 
-const AGENT_NAME = "Scouter Agent (Beta)";
+// ✅ Middleware: parse JSON ก่อนถึง route
+app.use(express.json());
 
-app.post("/api", (req, res) => {
-  console.log("🔹 Incoming Request:", req.body);
+// ✅ Route หลักสำหรับ Scouter Agent
+app.post("/", (req, res) => {
+  console.log("🔹 [DEBUG] Raw Request Body:", req.body);
 
-  try {
-    const { jobID, taskID, requestedAction, payload } = req.body;
+  const { jobID, taskID, requestedAction, payload } = req.body;
 
-    // ✅ Validate Payload
-    if (!jobID || !taskID || !requestedAction || !payload) {
-      return res.status(400).json({
-        error: true,
-        message: "Missing required fields: jobID, taskID, requestedAction, payload",
-      });
-    }
+  // ✅ Validation: ตรวจสอบ field ที่จำเป็น
+  if (!jobID || !taskID || !requestedAction) {
+    console.error("❌ [ERROR] Missing required fields");
+    return res.status(400).json({
+      status: "error",
+      message: "Missing required fields: jobID, taskID, requestedAction",
+      receivedBody: req.body,
+    });
+  }
 
-    // ✅ Mock Research Data (ตัวอย่าง)
-    const researchData = {
+  // ✅ Mock Response (ยังไม่เรียก API จริง)
+  const response = {
+    jobID,
+    taskID,
+    requestedAction,
+    status: "success",
+    timestamp: new Date().toISOString(),
+    agentName: "Scouter Agent (Beta)",
+    researchData: {
       insights: [
         "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
         "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
@@ -28,38 +38,27 @@ app.post("/api", (req, res) => {
       keywords: ["lycopene supplement", "skin health", "antioxidant"],
       competitorBrands: ["Brand A", "Brand B", "Brand C"],
       sourceLinks: [
-        { title: "Supplement Market Growth Report", url: "https://example.com/report1" },
-        { title: "Consumer Trends in Health Products", url: "https://example.com/report2" },
+        {
+          title: "Market Growth Report 2025",
+          url: "https://example.com/market-growth-2025",
+        },
+        {
+          title: "Consumer Trends in Supplements",
+          url: "https://example.com/consumer-trends",
+        },
       ],
-    };
+    },
+  };
 
-    const response = {
-      jobID,
-      taskID,
-      requestedAction,
-      status: "success",
-      agentName: AGENT_NAME,
-      timestamp: new Date().toISOString(),
-      researchData,
-    };
-
-    console.log("✅ Sending Response:", response);
-    return res.status(200).json(response);
-  } catch (err) {
-    console.error("❌ Scouter Agent Error:", err);
-    return res.status(500).json({
-      error: true,
-      message: "Internal Server Error",
-    });
-  }
+  console.log("✅ [DEBUG] Response to Node 5:", response);
+  return res.status(200).json(response);
 });
 
-// ✅ รองรับ GET สำหรับทดสอบ
+// ✅ Health Check (สำหรับทดสอบ GET)
 app.get("/", (req, res) => {
-  res.send("Scouter Agent (Beta) is running 🚀");
+  res.send("Scouter Agent Beta v1.1 is running ✅");
 });
 
-// ✅ ใช้พอร์ตที่ Vercel กำหนด
-app.listen(3000, () => console.log(`✅ ${AGENT_NAME} Ready on port 3000`));
-
-module.exports = app;
+app.listen(PORT, () => {
+  console.log(`🚀 Scouter Agent Beta v1.1 running on port ${PORT}`);
+});
