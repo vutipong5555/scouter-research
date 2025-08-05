@@ -1,68 +1,69 @@
-// index.js - Scouter Agent v2.4 (Based on v2.1 success case + Live SerpAPI integration)
-const express = require("express");
-const app = express();
-app.use(express.json());
+// ✅ Scouter Agent Beta v2.1 – Mock Success
 
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-
-app.post("/", async (req, res) => {
-  console.log("[Scouter Agent] Incoming Request:", JSON.stringify(req.body, null, 2));
-
-  // Validate Method
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
-
-  // Destructure Body
-  const { jobID, taskID, requestedAction, payload } = req.body;
-  if (!jobID || !taskID || !requestedAction || !payload || !payload.researchData) {
-    console.error("[Scouter Agent] Invalid Payload");
-    return res.status(400).json({ error: "Invalid payload structure" });
-  }
-
-  const agentName = "Scouter Agent";
-  const timestamp = new Date().toISOString();
-
-  const keywords = payload.researchData.keywords || [];
-  const serpApiKey = process.env.SERPAPI_KEY;
-  let serpResults = [];
-
-  if (serpApiKey && keywords.length > 0) {
-    try {
-      const query = keywords.join(" ");
-      const serpURL = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&engine=google&api_key=${serpApiKey}`;
-      const serpResponse = await fetch(serpURL);
-      const serpData = await serpResponse.json();
-
-      const organicResults = serpData.organic_results || [];
-
-      serpResults = organicResults.slice(0, 5).map((item, index) => ({
-        title: item.title,
-        url: item.link,
-        snippet: item.snippet || "",
-        rank: index + 1
-      }));
-    } catch (error) {
-      console.error("[Scouter Agent] SerpAPI Fetch Error:", error.message);
+export default async function handler(req, res) {
+  try {
+    // ✅ Allow only POST method
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method Not Allowed. Use POST instead." });
     }
+
+    // ✅ Validate Content-Type
+    if (req.headers["content-type"] !== "application/json") {
+      return res.status(400).json({ error: "Invalid Content-Type. Use application/json" });
+    }
+
+    // ✅ Parse JSON body (if string)
+    let body = req.body;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid JSON body" });
+      }
+    }
+
+    console.log("📥 Incoming Request Body:", JSON.stringify(body, null, 2));
+
+    const { jobID, taskID, requestedAction, payload } = body;
+
+    // ✅ Validate required fields
+    if (!jobID || !taskID || !requestedAction) {
+      return res.status(400).json({ error: "Missing required fields (jobID, taskID, requestedAction)" });
+    }
+
+    // ✅ Build mock researchData response (for test only)
+    const response = {
+      jobID,
+      taskID,
+      requestedAction,
+      status: "success",
+      timestamp: new Date().toISOString(),
+      agentName: "Scouter",
+      researchData: {
+        insights: [
+          "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
+          "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
+          "การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์"
+        ],
+        keywords: ["lycopene supplement", "skin health", "antioxidant"],
+        competitorBrands: ["Brand A", "Brand B", "Brand C"],
+        sourceLinks: [
+          {
+            title: "รายงานตลาดอาหารเสริม 2024",
+            url: "https://example.com/supplement-market-2024"
+          },
+          {
+            title: "งานวิจัยเกี่ยวกับไลโคปีน",
+            url: "https://example.com/lycopene-study"
+          }
+        ]
+      }
+    };
+
+    // ✅ Return success
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("❌ Internal Server Error:", error);
+    return res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
-
-  const response = {
-    statusCode: 200,
-    jobID,
-    taskID,
-    agent: agentName,
-    timestamp,
-    insights: serpResults.map(r => r.snippet),
-    sourceLinks: serpResults.map(r => ({ title: r.title, url: r.url })),
-    priorityScore: serpResults.map(r => 100 - r.rank * 10)
-  };
-
-  console.log("[Scouter Agent] Outgoing Response:", JSON.stringify(response, null, 2));
-  res.status(200).json(response);
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`[Scouter Agent] Listening on port ${PORT}`);
-});
+}
