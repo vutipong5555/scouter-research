@@ -1,64 +1,88 @@
-const express = require("express");
-const app = express();
-const PORT = process.env.PORT || 3000;
+// ✅ Scouter Agent Beta v1.1 (Production Ready + SerpAPI)
+// By Dr.Wise
 
-// ✅ Middleware: parse JSON ก่อนถึง route
+const express = require("express");
+const axios = require("axios");
+const app = express();
 app.use(express.json());
 
-// ✅ Route หลักสำหรับ Scouter Agent
-app.post("/", (req, res) => {
-  console.log("🔹 [DEBUG] Raw Request Body:", req.body);
+// 🟡 ตั้งค่า SerpAPI Key (ใช้ process.env ใน Production จริง)
+const SERP_API_KEY = "YOUR_SERPAPI_KEY_HERE";
+const AGENT_NAME = "Scouter";
 
-  const { jobID, taskID, requestedAction, payload } = req.body;
+// ✅ Validation Function
+function validatePayload(payload) {
+  const requiredFields = ["jobID", "taskID", "requestedAction", "payload"];
+  for (const field of requiredFields) {
+    if (!payload[field]) return `Missing field: ${field}`;
+  }
+  return null;
+}
 
-  // ✅ Validation: ตรวจสอบ field ที่จำเป็น
-  if (!jobID || !taskID || !requestedAction) {
-    console.error("❌ [ERROR] Missing required fields");
-    return res.status(400).json({
-      status: "error",
-      message: "Missing required fields: jobID, taskID, requestedAction",
-      receivedBody: req.body,
-    });
+// ✅ SerpAPI Search Function
+async function searchWithSerpAPI(query) {
+  try {
+    const params = {
+      api_key: SERP_API_KEY,
+      engine: "google",
+      q: query,
+      hl: "en",
+      gl: "us"
+    };
+    const response = await axios.get("https://serpapi.com/search", { params });
+    const results = response.data.organic_results || [];
+
+    return results.slice(0, 3).map((item, index) => ({
+      rank: index + 1,
+      title: item.title,
+      link: item.link,
+      snippet: item.snippet || ""
+    }));
+  } catch (error) {
+    console.error("❌ SerpAPI Error:", error.message);
+    return [];
+  }
+}
+
+// ✅ Main POST Endpoint
+app.post("/", async (req, res) => {
+  const payload = req.body;
+  const error = validatePayload(payload);
+
+  console.log("🔍 Incoming Payload:", JSON.stringify(payload, null, 2));
+
+  if (error) {
+    console.warn("⚠️ Payload validation failed:", error);
+    return res.status(400).json({ error });
   }
 
-  // ✅ Mock Response (ยังไม่เรียก API จริง)
-  const response = {
+  const { jobID, taskID, requestedAction, payload: innerPayload } = payload;
+
+  // 🟢 ใช้ query จาก researchData (mock) หรือ fallback keyword
+  const query = innerPayload?.researchData?.keywords?.join(" ") || "AI market trend";
+  const serpResults = await searchWithSerpAPI(query);
+
+  // 🟢 Response Format
+  const responseBody = {
     jobID,
     taskID,
     requestedAction,
     status: "success",
     timestamp: new Date().toISOString(),
-    agentName: "Scouter Agent (Beta)",
+    agentName: AGENT_NAME,
     researchData: {
-      insights: [
-        "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
-        "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
-        "การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์",
-      ],
-      keywords: ["lycopene supplement", "skin health", "antioxidant"],
-      competitorBrands: ["Brand A", "Brand B", "Brand C"],
-      sourceLinks: [
-        {
-          title: "Market Growth Report 2025",
-          url: "https://example.com/market-growth-2025",
-        },
-        {
-          title: "Consumer Trends in Supplements",
-          url: "https://example.com/consumer-trends",
-        },
-      ],
-    },
+      insights: serpResults.map(r => r.snippet),
+      sources: serpResults.map(r => ({ title: r.title, url: r.link })),
+      raw: serpResults
+    }
   };
 
-  console.log("✅ [DEBUG] Response to Node 5:", response);
-  return res.status(200).json(response);
+  console.log("✅ Response to Node 5:", JSON.stringify(responseBody, null, 2));
+  res.status(200).json(responseBody);
 });
 
-// ✅ Health Check (สำหรับทดสอบ GET)
-app.get("/", (req, res) => {
-  res.send("Scouter Agent Beta v1.1 is running ✅");
-});
-
+// ✅ Start Server (for local test only)
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Scouter Agent Beta v1.1 running on port ${PORT}`);
 });
