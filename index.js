@@ -1,89 +1,87 @@
-// ✅ Scouter Agent Beta v1.1 (Production Ready + SerpAPI)
-// By Dr.Wise
+// index.js - Scouter Agent Beta v1.9 (Production Ready)
 
-const express = require("express");
-const axios = require("axios");
+const express = require('express');
 const app = express();
+const PORT = process.env.PORT || 3000;
+
 app.use(express.json());
 
-// 🟡 ตั้งค่า SerpAPI Key (ใช้ process.env ใน Production จริง)
-const SERP_API_KEY = "5c0bcdde38747bb314eb28d56a4fe152e4e19cf339cc73b5c47e7285969b26b6";
-const AGENT_NAME = "Scouter";
+// 🔧 Middleware: Validate incoming payload
+function validatePayload(req, res, next) {
+  const { jobID, taskID, requestedAction, payload } = req.body;
 
-// ✅ Validation Function
-function validatePayload(payload) {
-  const requiredFields = ["jobID", "taskID", "requestedAction", "payload"];
-  for (const field of requiredFields) {
-    if (!payload[field]) return `Missing field: ${field}`;
+  if (!jobID || !taskID || !requestedAction || !payload) {
+    console.error("❌ Missing required fields in payload:", req.body);
+    return res.status(400).json({ 
+      status: "error",
+      message: "Missing required fields: jobID, taskID, requestedAction, or payload"
+    });
   }
-  return null;
+
+  if (!payload.topic || !payload.audience || !payload.region) {
+    console.error("❌ Missing required payload fields:", payload);
+    return res.status(400).json({ 
+      status: "error",
+      message: "Missing fields in payload: topic, audience, or region"
+    });
+  }
+
+  next();
 }
 
-// ✅ SerpAPI Search Function
-async function searchWithSerpAPI(query) {
-  try {
-    const params = {
-      api_key: SERP_API_KEY,
-      engine: "google",
-      q: query,
-      hl: "en",
-      gl: "us"
-    };
-    const response = await axios.get("https://serpapi.com/search", { params });
-    const results = response.data.organic_results || [];
-
-    return results.slice(0, 3).map((item, index) => ({
-      rank: index + 1,
-      title: item.title,
-      link: item.link,
-      snippet: item.snippet || ""
-    }));
-  } catch (error) {
-    console.error("❌ SerpAPI Error:", error.message);
-    return [];
-  }
-}
-
-// ✅ Main POST Endpoint
-app.post("/", async (req, res) => {
-  const payload = req.body;
-  const error = validatePayload(payload);
-
-  console.log("🔍 Incoming Payload:", JSON.stringify(payload, null, 2));
-
-  if (error) {
-    console.warn("⚠️ Payload validation failed:", error);
-    return res.status(400).json({ error });
-  }
-
-  const { jobID, taskID, requestedAction, payload: innerPayload } = payload;
-
-  // 🟢 ใช้ query จาก researchData (mock) หรือ fallback keyword
-  const query = innerPayload?.researchData?.keywords?.join(" ") || "AI market trend";
-  const serpResults = await searchWithSerpAPI(query);
-
-  // 🟢 Response Format
-  const responseBody = {
-    jobID,
-    taskID,
-    requestedAction,
-    status: "success",
+// 🧠 Mock function to simulate research insight (replace with SerpAPI call later)
+function generateMockInsight(payload) {
+  return {
+    jobID: req.body.jobID,
+    taskID: req.body.taskID,
+    requestedAction: req.body.requestedAction,
+    agentName: "Scouter Agent",
     timestamp: new Date().toISOString(),
-    agentName: AGENT_NAME,
     researchData: {
-      insights: serpResults.map(r => r.snippet),
-      sources: serpResults.map(r => ({ title: r.title, url: r.link })),
-      raw: serpResults
+      insights: [
+        `ตลาด ${payload.topic} เติบโตขึ้นในกลุ่ม ${payload.audience}`,
+        `กลุ่มเป้าหมายในภูมิภาค ${payload.region} ให้ความสำคัญกับความน่าเชื่อถือของแบรนด์`,
+        `พฤติกรรมการค้นหาเกี่ยวกับ '${payload.topic}' เพิ่มขึ้นในไตรมาสที่ผ่านมา`
+      ],
+      keywords: [payload.topic, payload.audience, payload.region],
+      competitorBrands: ["Brand A", "Brand B", "Brand C"],
+      sourceLinks: [
+        {
+          title: "Google Trends - Supplement in Thailand",
+          url: "https://trends.google.com"
+        },
+        {
+          title: "Pantip - คนพูดถึงอาหารเสริมอะไรบ้าง",
+          url: "https://pantip.com"
+        }
+      ],
+      priorityScore: 8.5
     }
   };
+}
 
-  console.log("✅ Response to Node 5:", JSON.stringify(responseBody, null, 2));
-  res.status(200).json(responseBody);
+// 📥 POST Endpoint
+app.post('/', validatePayload, (req, res) => {
+  try {
+    console.log("✅ Received payload:", JSON.stringify(req.body, null, 2));
+
+    const { payload } = req.body;
+    const mockResponse = generateMockInsight(payload);
+
+    console.log("📤 Sending response:", JSON.stringify(mockResponse, null, 2));
+    return res.status(200).json(mockResponse);
+
+  } catch (err) {
+    console.error("🔥 Internal Server Error:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Internal Server Error",
+      error: err.message
+    });
+  }
 });
 
-// ✅ Start Server (for local test only)
-const PORT = process.env.PORT || 3000;
+// 🚀 Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Scouter Agent Beta v1.1 running on port ${PORT}`);
+  console.log(`🚀 Scouter Agent Beta v1.9 is running on port ${PORT}`);
 });
-
