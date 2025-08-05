@@ -60,14 +60,7 @@ export default async function handler(req, res) {
       }
     };
 
-    // ✅ Return success
-    return res.status(200).json(response);
-  } catch (error) {
-    console.error("❌ Internal Server Error:", error);
-    return res.status(500).json({ error: "Internal Server Error", details: error.message });
-  }
-
-    // Optional: Use Live SerpAPI if enabled
+     // Optional: Use Live SerpAPI if enabled
     const useSerpAPI = true; // Toggle this to true to activate real search
     const serpApiKey = process.env.SERP_API_KEY || "5c0bcdde38747bb314eb28d56a4fe152e4e19cf339cc73b5c47e7285969b26b6";
     async function fetchInsightsFromSerpAPI(query) {
@@ -91,8 +84,18 @@ export default async function handler(req, res) {
         console.error("SerpAPI Error:", error.message);
         return [];
       }
+
+    // ✅ Return success
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("❌ Internal Server Error:", error);
+    return res.status(500).json({ error: "Internal Server Error", details: error.message });
+  }
+
+   
     }
 }
+
 
 
 
