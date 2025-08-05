@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 
 // 🟡 ตั้งค่า SerpAPI Key (ใช้ process.env ใน Production จริง)
-const SERP_API_KEY = "YOUR_SERPAPI_KEY_HERE";
+const SERP_API_KEY = "5c0bcdde38747bb314eb28d56a4fe152e4e19cf339cc73b5c47e7285969b26b6";
 const AGENT_NAME = "Scouter";
 
 // ✅ Validation Function
@@ -86,3 +86,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Scouter Agent Beta v1.1 running on port ${PORT}`);
 });
+
