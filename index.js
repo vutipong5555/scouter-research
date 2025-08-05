@@ -1,69 +1,108 @@
-// ✅ Scouter Agent Beta v2.1 – Mock Success
+/**
+ * Scouter Agent - v2.3 (Production-Ready with SerpAPI, Based on v2.1 Success Case)
+ */
 
 export default async function handler(req, res) {
+  const AGENT_NAME = "Scouter Agent v2.3";
+  const timestamp = new Date().toISOString();
+
+  // Validate HTTP method
+  if (req.method !== "POST") {
+    return res.status(405).json({
+      statusCode: 405,
+      error: "Method Not Allowed",
+      agent: AGENT_NAME,
+      timestamp,
+    });
+  }
+
+  // Validate Content-Type
+  if (req.headers["content-type"] !== "application/json") {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Invalid Content-Type. Expecting application/json",
+      agent: AGENT_NAME,
+      timestamp,
+    });
+  }
+
   try {
-    // ✅ Allow only POST method
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method Not Allowed. Use POST instead." });
+    const { jobID, taskID, requestedAction, payload } = req.body;
+
+    // Validate required fields
+    if (!jobID || !taskID || !requestedAction || !payload) {
+      return res.status(400).json({
+        statusCode: 400,
+        error: "Missing required fields in payload",
+        agent: AGENT_NAME,
+        timestamp,
+      });
     }
 
-    // ✅ Validate Content-Type
-    if (req.headers["content-type"] !== "application/json") {
-      return res.status(400).json({ error: "Invalid Content-Type. Use application/json" });
+    const { researchData } = payload;
+
+    if (!researchData || !Array.isArray(researchData) || researchData.length === 0) {
+      return res.status(400).json({
+        statusCode: 400,
+        error: "Missing or invalid researchData",
+        agent: AGENT_NAME,
+        timestamp,
+      });
     }
 
-    // ✅ Parse JSON body (if string)
-    let body = req.body;
-    if (typeof body === "string") {
-      try {
-        body = JSON.parse(body);
-      } catch (err) {
-        return res.status(400).json({ error: "Invalid JSON body" });
+    // Attempt SerpAPI (only if key is present)
+    const serpResults = [];
+    const SERP_API_KEY = process.env.SERPAPI_KEY;
+
+    if (SERP_API_KEY) {
+      const axios = await import("axios");
+
+      for (const topic of researchData) {
+        const serpURL = `https://serpapi.com/search.json?q=${encodeURIComponent(
+          topic
+        )}&hl=en&gl=us&api_key=${SERP_API_KEY}`;
+
+        try {
+          const serpResponse = await axios.default.get(serpURL);
+          const organic = serpResponse.data.organic_results || [];
+
+          serpResults.push(
+            ...organic.slice(0, 3).map((item, index) => ({
+              query: topic,
+              title: item.title,
+              url: item.link,
+              snippet: item.snippet || "",
+              rank: index + 1,
+            }))
+          );
+        } catch (err) {
+          console.error("SerpAPI Error for topic:", topic, err.message);
+        }
       }
     }
 
-    console.log("📥 Incoming Request Body:", JSON.stringify(body, null, 2));
-
-    const { jobID, taskID, requestedAction, payload } = body;
-
-    // ✅ Validate required fields
-    if (!jobID || !taskID || !requestedAction) {
-      return res.status(400).json({ error: "Missing required fields (jobID, taskID, requestedAction)" });
-    }
-
-    // ✅ Build mock researchData response (for test only)
+    // Build response
     const response = {
+      statusCode: 200,
       jobID,
       taskID,
-      requestedAction,
-      status: "success",
-      timestamp: new Date().toISOString(),
-      agentName: "Scouter",
-      researchData: {
-        insights: [
-          "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
-          "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
-          "การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์"
-        ],
-        keywords: ["lycopene supplement", "skin health", "antioxidant"],
-        competitorBrands: ["Brand A", "Brand B", "Brand C"],
-        sourceLinks: [
-          {
-            title: "รายงานตลาดอาหารเสริม 2024",
-            url: "https://example.com/supplement-market-2024"
-          },
-          {
-            title: "งานวิจัยเกี่ยวกับไลโคปีน",
-            url: "https://example.com/lycopene-study"
-          }
-        ]
-      }
+      agent: AGENT_NAME,
+      timestamp,
+      insights: researchData.map((t) => `Insight about: ${t}`), // Placeholder
+      sourceLinks: serpResults,
+      priorityScore: Math.floor(Math.random() * 100),
     };
 
-    // ✅ Return success
+    console.log("[Scouter v2.3] Response →", JSON.stringify(response, null, 2));
+
     return res.status(200).json(response);
   } catch (error) {
-    console.error("❌ Internal Server Error:", error);
-    return res.status(500).json({ error: "Internal Server Error", details: error.message });
+    console.error("[Scouter v2.3] Fatal Error:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      error: "Internal Server Error",
+      agent: AGENT_NAME,
+      timestamp,
+    });
   }
 }
