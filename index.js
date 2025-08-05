@@ -69,7 +69,7 @@ export default async function handler(req, res) {
 
     // Optional: Use Live SerpAPI if enabled
     const useSerpAPI = true; // Toggle this to true to activate real search
-    const serpApiKey = process.env.5c0bcdde38747bb314eb28d56a4fe152e4e19cf339cc73b5c47e7285969b26b6 || "YOUR_SERPAPI_KEY_HERE";
+    const serpApiKey = process.env.SERP_API_KEY || "5c0bcdde38747bb314eb28d56a4fe152e4e19cf339cc73b5c47e7285969b26b6";
 
     async function fetchInsightsFromSerpAPI(query) {
       try {
@@ -94,6 +94,7 @@ export default async function handler(req, res) {
       }
     }
 }
+
 
 
 
