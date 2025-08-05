@@ -1,69 +1,79 @@
-// ✅ Scouter Agent Beta v2.1 – Mock Success
+// index.js - Scouter Agent Beta v2.5 (Live SerpAPI + Production Ready)
+import axios from 'axios';
 
 export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed. Use POST only.' });
+  }
+
+  if (!req.headers['content-type']?.includes('application/json')) {
+    return res.status(400).json({ error: 'Invalid content-type. Must be application/json' });
+  }
+
   try {
-    // ✅ Allow only POST method
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method Not Allowed. Use POST instead." });
-    }
-
-    // ✅ Validate Content-Type
-    if (req.headers["content-type"] !== "application/json") {
-      return res.status(400).json({ error: "Invalid Content-Type. Use application/json" });
-    }
-
-    // ✅ Parse JSON body (if string)
-    let body = req.body;
-    if (typeof body === "string") {
-      try {
-        body = JSON.parse(body);
-      } catch (err) {
-        return res.status(400).json({ error: "Invalid JSON body" });
-      }
-    }
-
-    console.log("📥 Incoming Request Body:", JSON.stringify(body, null, 2));
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
     const { jobID, taskID, requestedAction, payload } = body;
 
-    // ✅ Validate required fields
-    if (!jobID || !taskID || !requestedAction) {
-      return res.status(400).json({ error: "Missing required fields (jobID, taskID, requestedAction)" });
+    if (!jobID || !taskID || !requestedAction || !payload || !payload.researchData) {
+      return res.status(400).json({ error: 'Missing required fields: jobID, taskID, requestedAction, payload.researchData' });
     }
 
-    // ✅ Build mock researchData response (for test only)
-    const response = {
+    const keywords = payload.researchData.keywords || [];
+    let serpResults = [];
+
+    if (process.env.SERPAPI_KEY && keywords.length > 0) {
+      try {
+        const query = keywords.join(' OR ');
+        const serpRes = await axios.get('https://serpapi.com/search.json', {
+          params: {
+            q: query,
+            api_key: process.env.SERPAPI_KEY,
+            engine: 'google',
+            num: 3,
+          },
+        });
+
+        const organicResults = serpRes.data.organic_results || [];
+
+        serpResults = organicResults.slice(0, 3).map((item) => ({
+          title: item.title || '',
+          url: item.link || '',
+          snippet: item.snippet || '',
+        }));
+      } catch (err) {
+        console.error('[SerpAPI ERROR]', err.message);
+      }
+    }
+
+    const responsePayload = {
       jobID,
       taskID,
       requestedAction,
-      status: "success",
+      status: 'success',
       timestamp: new Date().toISOString(),
-      agentName: "Scouter",
+      agentName: 'Scouter',
       researchData: {
         insights: [
-          "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
-          "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
-          "การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์"
+          'ตลาดอาหารเสริมเติบโต 12% ต่อปี',
+          'ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ',
+          'การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์',
         ],
-        keywords: ["lycopene supplement", "skin health", "antioxidant"],
-        competitorBrands: ["Brand A", "Brand B", "Brand C"],
-        sourceLinks: [
+        keywords,
+        competitorBrands: ['Brand A', 'Brand B', 'Brand C'],
+        sourceLinks: serpResults.length > 0 ? serpResults : [
           {
-            title: "รายงานตลาดอาหารเสริม 2024",
-            url: "https://example.com/supplement-market-2024"
-          },
-          {
-            title: "งานวิจัยเกี่ยวกับไลโคปีน",
-            url: "https://example.com/lycopene-study"
+            title: 'Mock Source 1',
+            url: 'https://example.com/article1',
+            snippet: 'This is a sample snippet from a mock source.'
           }
         ]
-      }
+      },
     };
 
-    // ✅ Return success
-    return res.status(200).json(response);
+    return res.status(200).json(responsePayload);
   } catch (error) {
-    console.error("❌ Internal Server Error:", error);
-    return res.status(500).json({ error: "Internal Server Error", details: error.message });
+    console.error('[SERVER ERROR]', error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
 }
