@@ -1,4 +1,5 @@
 // index.js - Scouter Agent Beta v2.5 (Live SerpAPI + Production Ready)
+import axios from 'axios';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -27,7 +28,7 @@ export default async function handler(req, res) {
         const serpRes = await axios.get('https://serpapi.com/search.json', {
           params: {
             q: query,
-            api_key: process.env.SERPAPI_KEY,
+            api_key: process.env.5c0bcdde38747bb314eb28d56a4fe152e4e19cf339cc73b5c47e7285969b26b6,
             engine: 'google',
             num: 3,
           },
@@ -76,4 +77,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
 }
-
