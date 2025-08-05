@@ -1,79 +1,96 @@
-// index.js - Scouter Agent Beta v2.5 (Live SerpAPI + Production Ready)
-import axios from 'axios';
+// ✅ Scouter Agent Beta v2.1 – Mock Success
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed. Use POST only.' });
-  }
-
-  if (!req.headers['content-type']?.includes('application/json')) {
-    return res.status(400).json({ error: 'Invalid content-type. Must be application/json' });
-  }
-
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-
-    const { jobID, taskID, requestedAction, payload } = body;
-
-    if (!jobID || !taskID || !requestedAction || !payload || !payload.researchData) {
-      return res.status(400).json({ error: 'Missing required fields: jobID, taskID, requestedAction, payload.researchData' });
+    // ✅ Allow only POST method
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method Not Allowed. Use POST instead." });
     }
 
-    const keywords = payload.researchData.keywords || [];
-    let serpResults = [];
+    // ✅ Validate Content-Type
+    if (req.headers["content-type"] !== "application/json") {
+      return res.status(400).json({ error: "Invalid Content-Type. Use application/json" });
+    }
 
-    if (process.env.SERPAPI_KEY && keywords.length > 0) {
+    // ✅ Parse JSON body (if string)
+    let body = req.body;
+    if (typeof body === "string") {
       try {
-        const query = keywords.join(' OR ');
-        const serpRes = await axios.get('https://serpapi.com/search.json', {
-          params: {
-            q: query,
-            api_key: process.env.5c0bcdde38747bb314eb28d56a4fe152e4e19cf339cc73b5c47e7285969b26b6,
-            engine: 'google',
-            num: 3,
-          },
-        });
-
-        const organicResults = serpRes.data.organic_results || [];
-
-        serpResults = organicResults.slice(0, 3).map((item) => ({
-          title: item.title || '',
-          url: item.link || '',
-          snippet: item.snippet || '',
-        }));
+        body = JSON.parse(body);
       } catch (err) {
-        console.error('[SerpAPI ERROR]', err.message);
+        return res.status(400).json({ error: "Invalid JSON body" });
       }
     }
 
-    const responsePayload = {
+    console.log("📥 Incoming Request Body:", JSON.stringify(body, null, 2));
+
+    const { jobID, taskID, requestedAction, payload } = body;
+
+    // ✅ Validate required fields
+    if (!jobID || !taskID || !requestedAction) {
+      return res.status(400).json({ error: "Missing required fields (jobID, taskID, requestedAction)" });
+    }
+
+    // ✅ Build mock researchData response (for test only)
+    const response = {
       jobID,
       taskID,
       requestedAction,
-      status: 'success',
+      status: "success",
       timestamp: new Date().toISOString(),
-      agentName: 'Scouter',
+      agentName: "Scouter",
       researchData: {
         insights: [
-          'ตลาดอาหารเสริมเติบโต 12% ต่อปี',
-          'ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ',
-          'การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์',
+          "ตลาดอาหารเสริมเติบโต 12% ต่อปี",
+          "ลูกค้าเป้าหมายสนใจส่วนผสมจากธรรมชาติ",
+          "การแข่งขันสูง แต่โอกาสอยู่ในช่องทางออนไลน์"
         ],
-        keywords,
-        competitorBrands: ['Brand A', 'Brand B', 'Brand C'],
-        sourceLinks: serpResults.length > 0 ? serpResults : [
+        keywords: ["lycopene supplement", "skin health", "antioxidant"],
+        competitorBrands: ["Brand A", "Brand B", "Brand C"],
+        sourceLinks: [
           {
-            title: 'Mock Source 1',
-            url: 'https://example.com/article1',
-            snippet: 'This is a sample snippet from a mock source.'
+            title: "รายงานตลาดอาหารเสริม 2024",
+            url: "https://example.com/supplement-market-2024"
+          },
+          {
+            title: "งานวิจัยเกี่ยวกับไลโคปีน",
+            url: "https://example.com/lycopene-study"
           }
         ]
-      },
+      }
     };
 
-    return res.status(200).json(responsePayload);
+    // ✅ Return success
+    return res.status(200).json(response);
   } catch (error) {
-    console.error('[SERVER ERROR]', error);
-    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    console.error("❌ Internal Server Error:", error);
+    return res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
+
+    // Optional: Use Live SerpAPI if enabled
+    const useSerpAPI = false; // Toggle this to true to activate real search
+    const serpApiKey = process.env.SERP_API_KEY || "YOUR_SERPAPI_KEY_HERE";
+
+    async function fetchInsightsFromSerpAPI(query) {
+      try {
+        const response = await axios.get("https://serpapi.com/search", {
+          params: {
+            engine: "google",
+            q: query,
+            api_key: serpApiKey,
+          },
+        });
+
+        const results = response.data.organic_results || [];
+        return results.slice(0, 3).map((r, index) => ({
+          title: r.title,
+          url: r.link,
+          snippet: r.snippet,
+          rank: index + 1,
+        }));
+      } catch (error) {
+        console.error("SerpAPI Error:", error.message);
+        return [];
+      }
+    }
 }
